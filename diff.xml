@@ -1,0 +1,12 @@
+<list>
+<a>4<?UPDATE FROM "1"?></a>
+<b><?DELETE b?>
+2</b>
+<d><daughter><?DELETE daughter?>
+Maruška</daughter>
+<son><?INSERT son?>
+Janíček</son>
+</d>
+<c><?INSERT c?>
+3</c>
+</list>

@@ -26,16 +26,41 @@
 # ARE DISCLAIMED.  IN NO EVENT SHALL YUAN WANG BE LIABLE FOR ANY DIRECT,
 # INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# SERVICES LOSS OF USE, DATA, OR PROFITS OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import XTree
+import sys, hashlib
 import xml.sax
-_PARSER_NAME = "org.apache.xerces.parsers.SAXParser";
+_STACK_SIZE = 100
 
-# FIXME
+class ErrorHandler:
+    """Basic interface for SAX error handlers. If you create an object
+    that implements this interface, then register the object with your
+    Parser, the parser will call the methods in your object to report
+    all warnings and errors. There are three levels of errors
+    available: warnings, (possibly) recoverable errors, and
+    unrecoverable errors. All methods take a SAXParseException as the
+    only parameter."""
+    
+    
+
+    def error(self, exception):
+        "Handle a recoverable error."
+        sys.stderr.write ("Error: %s\n" % exception)
+
+    def fatalError(self, exception):
+        "Handle a non-recoverable error."
+        sys.stderr.write ("Fatal error: %s\n" % exception)
+        raise xml.sax.SAXParseException
+
+    def warning(self, exception):
+        "Handle a warning."
+        sys.stderr.write ("Warning: %s\n" % exception)
+
 # This is interesting
 # http://www.virtuousprogrammer.com/?page_id=183
 # http://docs.python.org/library/xml.sax.reader.html
@@ -43,227 +68,185 @@ _PARSER_NAME = "org.apache.xerces.parsers.SAXParser";
 # <code>XTree</code>
 # class XParser extends DefaultHandler implements LexicalHandler
 class XParser(xml.sax.handler.ContentHandler):
-    _setValidation = False
-    _setNameSpaces = True
-    _setSchemaSupport = True
-    _setSchemaFullSupport = False
-    _setNameSpacePrefixes = True
-
-    _STACK_SIZE = 100
-
-    private XMLReader    _parser;
-    private XTree        _xtree;
-    private int        _idStack[], _lsidStack[]; // id and left sibling
-    private long        _valueStack[];
-    private int        _stackTop, _currentNodeID;
-    private boolean        _readElement;
-    private StringBuffer    _elementBuffer;
+#    private XMLReader    self._parser
+#    private XTree        self._xtree
+#    private int        self._idStack[], self._lsidStack[] # id and left sibling
+#    private long        self._valueStack[]
+#    private int        self._stackTop, self._currentNodeID
+#    private boolean        self._readElement
+#    private StringBuffer    self._elementBuffer
 
 # Constructor.
     def __init__(self):
-    {
-        XHash.initialize();
-        try
-        {
-            _parser = (XMLReader)Class.forName(_PARSER_NAME).newInstance();
-            _parser.setFeature("http://xml.org/sax/features/validation", _setValidation);
-            _parser.setFeature("http://xml.org/sax/features/namespaces", _setNameSpaces);
-            _parser.setFeature("http://apache.org/xml/features/validation/schema", _setSchemaSupport);
-            _parser.setFeature("http://apache.org/xml/features/validation/schema-full-checking", _setSchemaFullSupport);
-             _parser.setFeature("http://xml.org/sax/features/namespace-prefixes", _setNameSpacePrefixes);
+        xml.sax.handler.ContentHandler.__init__(self)
+        self._setValidation = False
+        self._setNameSpaces = True
+        self._setSchemaSupport = True
+        self._setSchemaFullSupport = False
+        self._setNameSpacePrefixes = True
+        self._readElement = False
+        self._xtree = None
 
-            _parser.setContentHandler(this);
-            _parser.setErrorHandler(this);
-            _parser.setProperty("http://xml.org/sax/properties/lexical-handler", this);
-        }
-        catch (Exception e)
-        {
-            System.err.println(e.getMessage());
-            System.exit(1);
-        }
+#        try:
+        self._parser = xml.sax.make_parser()
+        self._parser.setFeature(xml.sax.handler.feature_validation, \
+            self._setValidation)
+        self._parser.setFeature(xml.sax.handler.feature_namespaces, \
+            self._setNameSpaces)
+        self._parser.setFeature(xml.sax.handler.feature_namespace_prefixes, \
+            self._setNameSpacePrefixes)
+        #self._parser.setFeature("http://apache.org/xml/features/validation/schema", \
+        #    self._setSchemaSupport)
+        #self._parser.setFeature("http://apache.org/xml/features/validation/schema-full-checking", \
+        #    self._setSchemaFullSupport)
 
-        _idStack = new int[_STACK_SIZE];
-        _lsidStack = new int[_STACK_SIZE];
-        _valueStack = new long[_STACK_SIZE];
-        _stackTop = 0;
-        _currentNodeID = XTree.NULL_NODE;
-        _elementBuffer = new StringBuffer();
-    }
+        self._parser.setContentHandler(self)
+#            self._parser.setErrorHandler(self)
+        self._parser.setProperty(xml.sax.handler.property_lexical_handler, self)
+#        except xml.sax.SAXParseException as (errno, strerror): # swallowing exception FIXME
+#            print >>sys.stderr, "Exception: err no. %d\n%s" % (errno, strerror)
+#            sys.exit(1)
+
+        self._idStack = []
+        self._lsidStack = []
+        self._valueStack = []
+        self._stackTop = 0
+        self._currentNodeID = XTree.NULL_NODE
+        self._elementBuffer = ""
 
 # Parse an XML document
 # @param    uri    input XML document
 # @return    the created XTree
-    def parse(String uri):
-    {
-        _xtree = new XTree();
-        _idStack[_stackTop] = XTree.NULL_NODE;
-        _lsidStack[_stackTop] = XTree.NULL_NODE;
+    def parse(self, uri):
+        self._xtree = XTree.XTree()
+        self._idStack.append(XTree.NULL_NODE)
+        self._lsidStack.append(XTree.NULL_NODE)
 
-        try
-        {
-            _parser.parse(uri);
-        }
-        catch (Exception e)
-        {
-            System.err.println(e.getMessage());
-            System.exit(1);
-        }
+#        try:
+        self._parser.parse(uri)
+#        except xml.sax.SAXParseException as (errno, strerror):
+#            print >>sys.stderr, "Exception: err no. %d\n%s" % (errno, strerror)
+#            sys.exit(1)
 
-        return _xtree;
-    }
+        return self._xtree
 
-    // Document handler methods
+    # Document handler methods
 
-    public void startElement(String uri, String local, String raw,
-                 Attributes attrs)
-    {
-        // if text is mixed with elements
-        if (_elementBuffer.length() > 0)
-        {
-            String    text = _elementBuffer.toString().trim();
-            if (text.length() > 0)
-            {
-                long    value = XHash.hash(text);
-                int    tid = _xtree.addText(_idStack[_stackTop], _lsidStack[_stackTop], text, value);
-                _lsidStack[_stackTop] = tid;
-                _currentNodeID = tid;
-                _valueStack[_stackTop] += value;
-            }
-        }
+    def startElement(self, local, attrs):
+        # if text is mixed with elements
+        if (len(self._elementBuffer) > 0):
+            text = str(self._elementBuffer).strip()
+            if (len(text) > 0):
+                # Original Java has long here, we have str. FIXME
+                value = hashlib.sha1(text).digest()
+                tid = self._xtree.addText(self._idStack[self._stackTop], self._lsidStack[self._stackTop], text, value)
+                self._lsidStack[self._stackTop] = tid
+                self._currentNodeID = tid
+                self._valueStack[self._stackTop] += value
 
-        int    eid = _xtree.addElement(_idStack[_stackTop],
-                        _lsidStack[_stackTop], local);
+        eid = self._xtree.addElement(self._idStack[self._stackTop],
+                        self._lsidStack[self._stackTop], local)
 
-        // Update last sibling info.
-        _lsidStack[_stackTop] = eid;
+        # Update last sibling info.
+        self._lsidStack[self._stackTop] = eid
 
-        // Push
-        _stackTop++;
-        _idStack[_stackTop] = eid;
-        _currentNodeID = eid;
-        _lsidStack[_stackTop] = XTree.NULL_NODE;
-        _valueStack[_stackTop] = XHash.hash(local);
+        # Push
+        self._stackTop += 1
+        self._idStack[self._stackTop] = eid
+        self._currentNodeID = eid
+        self._lsidStack[self._stackTop] = XTree.NULL_NODE
+        self._valueStack[self._stackTop] = hashlib.sha1(local).digest()
 
-        // Take care of attributes
-        if ((attrs != null) && (attrs.getLength() > 0))
-        {
-            for (int i = 0; i < attrs.getLength(); i++)
-            {
-                String    name = attrs.getQName(i);
-                String    value = attrs.getValue(i);
-                long    namehash = XHash.hash(name);
-                long    valuehash = XHash.hash(value);
-                long    attrhash = namehash * namehash +
-                           valuehash * valuehash;
-                int    aid = _xtree.addAttribute(eid, _lsidStack[_stackTop], name, value, namehash, attrhash);
+        # Take care of attributes
+        if ((attrs != None) and (attrs.getLength() > 0)):
+            for i in range(attrs.getLength()):
+                name = attrs.getQName(i)
+                value = attrs.getValue(i)
+                namehash = hashlib.sha1(name).digest()
+                valuehash = hashlib.sha1(value).digest()
+                attrhash = namehash * namehash + \
+                           valuehash * valuehash
+                aid = self._xtree.addAttribute(eid, self._lsidStack[self._stackTop], name, value, namehash, attrhash)
 
-                _lsidStack[_stackTop] = aid;
-                _currentNodeID = aid + 1;
-                _valueStack[_stackTop] += attrhash * attrhash;
-            }
-        }
+                self._lsidStack[self._stackTop] = aid
+                self._currentNodeID = aid + 1
+                self._valueStack[self._stackTop] += attrhash * attrhash
 
-        _readElement = True;
-        _elementBuffer = new StringBuffer();
-    }
+        self._readElement = True
+        self._elementBuffer = ""
+ 
+    def characters(self, ch):
+        self._elementBuffer += ch
 
-    def characters(char ch[], int start, int length):
-    {
-        _elementBuffer.append(ch, start, length);
-    }
+    def endElement(self, name):
+        if (self._readElement):
+            if (len(self._elementBuffer) > 0):
+                text = str(self._elementBuffer)
+                value = hashlib.sha1(text).digest()
+                self._currentNodeID = \
+                    self._xtree.addText(self._idStack[self._stackTop],
+                               self._lsidStack[self._stackTop],
+                               text, value)
+                self._valueStack[self._stackTop] += value
+            else:    # an empty element
+                self._currentNodeID = \
+                    self._xtree.addText(self._idStack[self._stackTop], \
+                               self._lsidStack[self._stackTop], \
+                               "", 0)
+            self._readElement = False
+        else:
+            if (len(self._elementBuffer) > 0):
+                text = str(self._elementBuffer).strip()
+                # More text nodes before end of the element.
+                if (len(text) > 0):
+                    value = hashlib.sha1(text).digest()
+                    self._currentNodeID = \
+                      self._xtree.addText(self._idStack[self._stackTop], \
+                             self._lsidStack[self._stackTop], \
+                             text, value)
+                    self._valueStack[self._stackTop] += value
 
-    def endElement(String uri, String local, String raw):
-    {
-        if (_readElement)
-        {
-            if (_elementBuffer.length() > 0)
-            {
-                String    text = _elementBuffer.toString();
-                long    value = XHash.hash(text);
-                _currentNodeID =
-                    _xtree.addText(_idStack[_stackTop],
-                               _lsidStack[_stackTop],
-                               text, value);
-                _valueStack[_stackTop] += value;
-            }
-            else    // an empty element
-            {
-                _currentNodeID =
-                    _xtree.addText(_idStack[_stackTop],
-                               _lsidStack[_stackTop],
-                               "", 0);
-            }
-            _readElement = False;
-        }
-        else
-        {
-            if (_elementBuffer.length() > 0)
-            {
-                String    text = _elementBuffer.toString().trim();
-                // More text nodes before end of the element.
-                if (text.length() > 0)
-                {
-                    long    value = XHash.hash(text);
-                    _currentNodeID =
-                      _xtree.addText(_idStack[_stackTop],
-                             _lsidStack[_stackTop],
-                             text, value);
-                    _valueStack[_stackTop] += value;
-                }
-            }
-        }
+        self._elementBuffer = ""
+        self._xtree.addHashValue(self._idStack[self._stackTop],
+                    self._valueStack[self._stackTop])
+        self._valueStack[self._stackTop-1] += self._valueStack[self._stackTop] * \
+                        self._valueStack[self._stackTop]
+        self._lsidStack[self._stackTop-1] = self._idStack[self._stackTop]
 
-        _elementBuffer = new StringBuffer();
-        _xtree.addHashValue(_idStack[_stackTop],
-                    _valueStack[_stackTop]);
-        _valueStack[_stackTop-1] += _valueStack[_stackTop] *
-                        _valueStack[_stackTop];
-        _lsidStack[_stackTop-1] = _idStack[_stackTop];
+        # Pop
+        self._stackTop -= 1
 
-        // Pop
-        _stackTop--;
-    }
+    # End of document handler methods
 
-    // End of document handler methods
+    # Lexical handler methods.
 
-    // Lexical handler methods.
+    def startCDATA(self):
+        # The text node id should be the one next to the current
+        # node id.
+        textid = self._currentNodeID + 1
+        text = str(self._elementBuffer)
+        self._xtree.addCDATA(textid, len(text))
 
-    def startCDATA():
-    {
-        // The text node id should be the one next to the current
-        // node id.
-        int    textid = _currentNodeID + 1;
-        String    text = _elementBuffer.toString();
-        _xtree.addCDATA(textid, text.length());
-    }
+    def endCDATA(self):
+        textid = self._currentNodeID + 1
+        text = str(self._elementBuffer)
+        self._xtree.addCDATA(textid, len(text))
 
-    def endCDATA():
-    {
-        int    textid = _currentNodeID + 1;
-        String    text = _elementBuffer.toString();
-        _xtree.addCDATA(textid, text.length());
-    }
+    # Following functions are not implemented.
+    def comment(self, ch):
+        pass
+    
+    def startDTD(self, name, publicId, systemId):
+        pass
 
-    // Following functions are not implemented.
-    def comment(char[] ch, int start, int length):
-    {
-    }
+    def endDTD(self):
+        pass
 
-    def startDTD(String name, String publicId, String systemId):
-    {
-    }
+    def startEntity(self, name):
+        pass
 
-    def endDTD():
-    {
-    }
+    def endEntity(self, name):
+        pass
+    
+    # End of lexical handler methods.
 
-    def startEntity(String name):
-    {
-    }
-
-    def endEntity(String name):
-    {
-    }
-
-    // End of lexical handler methods.
-}

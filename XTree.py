@@ -56,6 +56,29 @@ class XTree:
 #    private long        self._hashValue[][]
 #    private String        _value[][]
 #    private Hashtable    self._tagNames, _cdataTable
+    _root = 0
+    _firstChild = []
+    _nextSibling = []
+    _isAttribute = []
+    _valueIndex = []
+    _matching = []
+    _childrenCount = []
+    _hashValue = []
+    _value = []
+    
+    _value.append([])
+    _tagNames = []
+    
+    # This hashtable is used to record CDATA section info.
+    # The key is the text node id, the value is the list of 
+    # (start,end) position pair of each CDATA section.
+    _cdataTable = {}
+    
+    _elementIndex = -1
+    _tagIndex = -1
+    _valueCount = 0
+
+
 
     def __init__(self, topcap=None, botcap=None):
         self._topCap = _TOP_LEVEL_CAPACITY
@@ -69,44 +92,44 @@ class XTree:
     # Initialization.
     def _initialize(self):
         self._root = 0
-        self._firstChild    = []
-        self._nextSibling    = []
-        self._isAttribute    = []
-        self._valueIndex    = []
-        self._matching    = []
-        self._childrenCount    = []
-        self._hashValue    = []
-        self._value        = []
+        self._firstChild = []
+        self._nextSibling = []
+        self._isAttribute = []
+        self._valueIndex = []
+        self._matching = []
+        self._childrenCount = []
+        self._hashValue = []
+        self._value = []
 
-        self._value[0]    = []
-        self._tagNames    = []
+        self._value.append([])
+        self._tagNames = []
 
         # This hashtable is used to record CDATA section info.
         # The key is the text node id, the value is the list of 
         # (start,end) position pair of each CDATA section.
-        self._cdataTable    = {}
+        self._cdataTable = {}
 
-        self._elementIndex    = -1
-        self._tagIndex    = -1
-        self._valueCount    = self._botCap - 1
+        self._elementIndex = -1
+        self._tagIndex = -1
+        self._valueCount = self._botCap - 1
 
     # ID Expansion
     def _expand(self, topid):
-        self._firstChild[topid]    = []
-        self._nextSibling[topid]    = []
-        self._childrenCount[topid]    = []
-        self._matching[topid]    = []
-        self._valueIndex[topid]    = []
-        self._hashValue[topid]    = []
-        self._isAttribute[topid]    = []
+        self._firstChild[topid] = []
+        self._nextSibling[topid] = []
+        self._childrenCount[topid] = []
+        self._matching[topid] = []
+        self._valueIndex[topid] = []
+        self._hashValue[topid] = []
+        self._isAttribute[topid] = []
 
         for i in range(self._botCap):
-            self._firstChild[topid][i]    = NULL_NODE
-            self._nextSibling[topid][i]    = NULL_NODE
-            self._childrenCount[topid][i]= 0
-            self._matching[topid][i]    = MATCH
-            self._valueIndex[topid][i]    = -1
-            self._isAttribute[topid][i]    = False
+            self._firstChild[topid][i] = NULL_NODE
+            self._nextSibling[topid][i] = NULL_NODE
+            self._childrenCount[topid][i] = 0
+            self._matching[topid][i] = MATCH
+            self._valueIndex[topid][i] = -1
+            self._isAttribute[topid][i] = False
 
     # Start  -- methods for constructing a tree.
     # Add a new element to the tree.
@@ -142,7 +165,7 @@ class XTree:
         if (lsid == NULL_NODE):
             self._firstChild[ptopid][pbotid] = self._elementIndex
         else:
-            self._nextSibling[lsid/self._botCap][lsid%self._botCap] = self._elementIndex
+            self._nextSibling[lsid / self._botCap][lsid % self._botCap] = self._elementIndex
 
         # update children count
         self._childrenCount[ptopid][pbotid] += 1
@@ -166,7 +189,7 @@ class XTree:
         if (lsid == NULL_NODE):
             self._firstChild[etopid][ebotid] = self._elementIndex
         else:
-            self._nextSibling[lsid/self._botCap][lsid%self._botCap] = self._elementIndex
+            self._nextSibling[lsid / self._botCap][lsid % self._botCap] = self._elementIndex
 
         self._childrenCount[etopid][ebotid] += 1
         self._hashValue[topid][botid] = value
@@ -209,7 +232,7 @@ class XTree:
     # @param    eid    element id
     # @param    value    extra hash value
     def addHashValue(self, eid, value):
-        self._hashValue[eid/self._botCap][eid%self._botCap] = value
+        self._hashValue[eid / self._botCap][eid % self._botCap] = value
 
     # Add a CDATA section (either a start or an end) to the CDATA
     # hashtable, in which each entry should have an even number of
@@ -233,11 +256,11 @@ class XTree:
     # @param    match    ?match and matched element id
     def addMatching(self, eid, match):
         if (match[0] == NO_MATCH):
-            self._matching[eid/self._botCap][eid%self._botCap] = NO_MATCH
+            self._matching[eid / self._botCap][eid % self._botCap] = NO_MATCH
         elif (match[0] == MATCH):
-            self._matching[eid/self._botCap][eid%self._botCap] = MATCH
+            self._matching[eid / self._botCap][eid % self._botCap] = MATCH
         else:
-            self._matching[eid/self._botCap][eid%self._botCap] = match[1] + 1
+            self._matching[eid / self._botCap][eid % self._botCap] = match[1] + 1
 
     # End  -- methods for constructing a tree.
 
@@ -247,7 +270,7 @@ class XTree:
     # @param    eid    element id
     # @param    match    ?change and matched element id 
     def getMatching(self, eid, match):
-        mid = self._matching[eid/self._botCap][eid%self._botCap]
+        mid = self._matching[eid / self._botCap][eid % self._botCap]
         if (mid == NO_MATCH):
             match[0] = NO_MATCH
         elif (mid == MATCH):
@@ -263,7 +286,7 @@ class XTree:
     # Get the first child of a node.
     # @param    eid    element id
     def getFirstChild(self, eid):
-        cid = self._firstChild[eid/self._botCap][eid%self._botCap]
+        cid = self._firstChild[eid / self._botCap][eid % self._botCap]
         while (cid > self._root):
             ctopid = cid / self._botCap
             cbotid = cid % self._botCap
@@ -277,13 +300,13 @@ class XTree:
     # Get the next sibling of a node.
     # @param    eid    element id
     def getNextSibling(self, eid):
-        return self._nextSibling[eid/self._botCap][eid%self._botCap]
+        return self._nextSibling[eid / self._botCap][eid % self._botCap]
 
     # Get the first attribute of a node.
     # @param    eid    element id
     def getFirstAttribute(self, eid):
-        aid = self._firstChild[eid/self._botCap][eid%self._botCap]
-        if ((aid > self._root) and (self._isAttribute[aid/self._botCap][aid%self._botCap])):
+        aid = self._firstChild[eid / self._botCap][eid % self._botCap]
+        if ((aid > self._root) and (self._isAttribute[aid / self._botCap][aid % self._botCap])):
             return aid
         else:
             return NULL_NODE
@@ -291,8 +314,8 @@ class XTree:
     # Get the next attribute of a node.
     # @param    aid    attribute id
     def getNextAttribute(self, aid):
-        aid1 = self._nextSibling[aid/self._botCap][aid%self._botCap]
-        if ((aid1 > self._root) and (self._isAttribute[aid1/self._botCap][aid1%self._botCap])):
+        aid1 = self._nextSibling[aid / self._botCap][aid % self._botCap]
+        if ((aid1 > self._root) and (self._isAttribute[aid1 / self._botCap][aid1 % self._botCap])):
             return aid1
         else:
             return NULL_NODE
@@ -300,17 +323,17 @@ class XTree:
     # Get the attribute value.
     # @param    aid    attribute id
     def getAttributeValue(self, aid):
-        cid = self._firstChild[aid/self._botCap][aid%self._botCap]
-        index = self._valueIndex[cid/self._botCap][cid%self._botCap]
+        cid = self._firstChild[aid / self._botCap][aid % self._botCap]
+        index = self._valueIndex[cid / self._botCap][cid % self._botCap]
         if (index > 0):
-            return self._value[index/self._botCap][index%self._botCap]
+            return self._value[index / self._botCap][index % self._botCap]
         else:
             return ""
 
     # Get the hash value of a node.
     # @param    eid    element id
     def getHashValue(self, eid):
-        return self._hashValue[eid/self._botCap][eid%self._botCap]
+        return self._hashValue[eid / self._botCap][eid % self._botCap]
 
     # Get the CDATA section position list of a text node.
     # @param    eid    element id
@@ -321,7 +344,7 @@ class XTree:
     # Get the childern count of a node.
     # @param    eid    element id
     def getChildrenCount(self, eid):
-        return self._childrenCount[eid/self._botCap][eid%self._botCap]
+        return self._childrenCount[eid / self._botCap][eid % self._botCap]
 
     # Get the # of all decendents of a node.
     # @param    eid    element id
@@ -335,39 +358,39 @@ class XTree:
         cid = self._firstChild[topid][botid]
         while (cid > NULL_NODE):
             count += self.getDecendentsCount(cid)
-            cid = self._nextSibling[cid/self._botCap][cid%self._botCap]
+            cid = self._nextSibling[cid / self._botCap][cid % self._botCap]
 
         return count
 
     # Get the value index of a node
     # @param    eid    element id
     def getValueIndex(self, eid):
-        return self._valueIndex[eid/self._botCap][eid%self._botCap]
+        return self._valueIndex[eid / self._botCap][eid % self._botCap]
 
     # Get the value of a leaf node
     # @param    index    value index
     def getValue(self, index):
-        return self._value[index/self._botCap][index%self._botCap]
+        return self._value[index / self._botCap][index % self._botCap]
 
     # Get the tag of an element node
     # @param    eid    element id
     def getTag(self, eid):
-        index = self._valueIndex[eid/self._botCap][eid%self._botCap]
+        index = self._valueIndex[eid / self._botCap][eid % self._botCap]
         return    self._value[0][index]
 
     # Get the text value of a leaf node
     # @param    eid    element id
     def getText(self, eid):
-        index = self._valueIndex[eid/self._botCap][eid%self._botCap]
+        index = self._valueIndex[eid / self._botCap][eid % self._botCap]
         if (index >= self._botCap):
-            return self._value[index/self._botCap][index%self._botCap]
+            return self._value[index / self._botCap][index % self._botCap]
         else:
             return ""
 
     # Check if a node an element node.
     # @param    eid    element id
     def isElement(self, eid):
-        vindex = self._valueIndex[eid/self._botCap][eid%self._botCap]
+        vindex = self._valueIndex[eid / self._botCap][eid % self._botCap]
         if (vindex < self._botCap):
             return True
         else:
@@ -376,12 +399,12 @@ class XTree:
     # Check if a node is an attribute node.
     # @param    eid    element id
     def isAttribute(self, eid):
-        return self._isAttribute[eid/self._botCap][eid%self._botCap]
+        return self._isAttribute[eid / self._botCap][eid % self._botCap]
 
     # Check if a node an leaf text node.
     # @param    edi    element id
     def isLeaf(self, eid):
-        index = self._valueIndex[eid/self._botCap][eid%self._botCap]
+        index = self._valueIndex[eid / self._botCap][eid % self._botCap]
         if (index < self._botCap):
             return False
         else:
@@ -390,7 +413,7 @@ class XTree:
     # End  -- methods for accessing a tree.
 
     # For testing purpose.
-    def dump(self, eid = None):
+    def dump(self, eid=None):
         if eid:
             topid = eid / self._botCap
             botid = eid % self._botCap
@@ -407,7 +430,7 @@ class XTree:
                        self._value[vtopid][vbotid]
         else:
             print "eid\tfirstC\tnextS\tattr?\tcCount\thash\tmatch\tvalue"
-            for i in range(self._root,self._elementIndex+1):
+            for i in range(self._root, self._elementIndex + 1):
                 topid = i / self._botCap
                 botid = i % self._botCap
                 vid = self._valueIndex[topid][botid]
@@ -421,3 +444,4 @@ class XTree:
                            self._hashValue[topid][botid] + "\t" + \
                            self._matching[topid][botid] + "\t" + \
                            self._value[vtopid][vbotid]
+

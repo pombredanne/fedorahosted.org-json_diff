@@ -55,6 +55,7 @@ Options:
 import sys, time, codecs
 import XTree, XLut
 from XParser import XParser
+import random
 
 # <code>XDiff</code> computes the difference of two input XML documents.
 
@@ -66,6 +67,8 @@ _TEXT_SIZE = 1024
 
 class XDiff:
     _oFlag = False
+    _gFlag = False
+    _needNewLine = False
     _NO_MATCH_THRESHOLD = 0.3
     _sampleCount = 3
     _DEBUG = False
@@ -343,7 +346,7 @@ class XDiff:
 
                 i = start
                 while (i < elementCount1) and (muc1 < ucount1):
-                    if (not matched1[i] and startTag.equals(self._xtree1.getTag(elements1[i]))):
+                    if (not matched1[i] and (startTag == self._xtree1.getTag(elements1[i]))):
                         matched1[i] = True
                         muc1 += 1
                         unmatched1[uele1] = elements1[i]
@@ -352,7 +355,7 @@ class XDiff:
 
                 i = 0
                 while (i < elementCount2) and (muc2 < ucount2):
-                    if (not matched2[i] and startTag.equals(self._xtree2.getTag(elements2[i]))):
+                    if (not matched2[i] and (startTag == self._xtree2.getTag(elements2[i]))):
                         matched2[i] = True
                         muc2 += 1
                         unmatched2[uele2] = elements2[i]
@@ -628,9 +631,9 @@ class XDiff:
                         dist = self._xlut.get(nodes2[j], nodes1[i])
                 else:
                     if treeOrder:
-                        dist = distance(nodes1[i], nodes2[j], True, XTree.NO_CONNECTION)
+                        dist = self.distance(nodes1[i], nodes2[j], True, XTree.NO_CONNECTION)
                     else:
-                        dist = distance(nodes2[j], nodes1[i], True, XTree.NO_CONNECTION)
+                        dist = self.distance(nodes2[j], nodes1[i], True, XTree.NO_CONNECTION)
                     # the default mode.
                     if (not self._oFlag and (dist > 1) and (dist >= self._NO_MATCH_THRESHOLD * (deleteCost + distance[count1][j]))):
                         dist = XTree.NO_CONNECTION
@@ -714,13 +717,13 @@ class XDiff:
                         matching2[j] = i
                         break
         else:
-            r =  Random(time.time()) # FIXME
+            r =  random.Random(time.time())
             scount1 = 0
             scount2 = 0
             matchingThreshold = 0
             i = 0
             while (i < self._sampleCount) and (scount2 < count2):
-                snode = r.nextInt(count2 - scount2) + scount2
+                snode = r.randint(0, count2 - scount2) + scount2
                 dist = XTree.NO_CONNECTION
                 bestmatch = XTree.NO_MATCH
                 for j in range(scount1,count1):
@@ -859,7 +862,6 @@ class XDiff:
     # @param    threshold    No need to return a distance higher
     #                  than this threshold
     # @return    the distance
-
     def _xdiff(self, pid1, pid2, threshold):
         dist = 0
 
@@ -1022,7 +1024,7 @@ class XDiff:
 
                 i = start
                 while (i < elementCount1) and (muc1 < ucount1):
-                    if (not matched1[i] and startTag.equals(self._xtree1.getTag(elements1[i]))):
+                    if (not matched1[i] and (startTag == self._xtree1.getTag(elements1[i]))):
                         matched1[i] = True
                         muc1 += 1
                         unmatched1[uele1] = elements1[i]
@@ -1031,7 +1033,7 @@ class XDiff:
 
                 i = 0
                 while (i < elementCount2) and (muc2 < ucount2):
-                    if (not matched2[i] and startTag.equals(self._xtree2.getTag(elements2[i]))):
+                    if (not matched2[i] and (startTag == self._xtree2.getTag(elements2[i]))):
                         matched2[i] = True
                         muc2 += 1
                         unmatched2[uele2] = elements2[i]
@@ -1189,13 +1191,12 @@ class XDiff:
                 deleteCost = self._xtree2.getDecendentsCount(nodes1[i]) + 1
             for j in range(count2):
                 if treeOrder:
-                    dist = distance(nodes1[i], nodes2[j], True, XTree.NO_CONNECTION)
+                    dist = self.distance(nodes1[i], nodes2[j], True, XTree.NO_CONNECTION)
                 else:
-                    dist = distance(nodes2[j], nodes1[i], True, XTree.NO_CONNECTION)
+                    dist = self.distance(nodes2[j], nodes1[i], True, XTree.NO_CONNECTION)
                 # the default mode.
                 if (not self._oFlag and (dist > 1) and (dist < XTree.NO_CONNECTION) and \
-                    (dist >= self._NO_MATCH_THRESHOLD * \
-                    (deleteCost + distance[count1][j]))):
+                    (dist >= self._NO_MATCH_THRESHOLD * (deleteCost + distance[count1][j]))):
                         dist = XTree.NO_CONNECTION
 
                 if (dist < XTree.NO_CONNECTION):
@@ -1204,6 +1205,7 @@ class XDiff:
                     else:
                         self._xlut.add(nodes2[j], nodes1[i], dist)
                 distance[i][j] = dist
+
             # delete cost.
             distance[i][count2] = deleteCost
 
@@ -1230,21 +1232,21 @@ class XDiff:
             matching2[i] = XTree.NO_MATCH
 
         distance = 0
-        r =  Random(time.time())
+        r =  random.Random(time.time())
         scount1 = 0
         scount2 = 0
         matchingThreshold = 0
 
         i = 0
         while (i < self._sampleCount) and (scount2 < count2):
-            snode = r.nextInt(count2 - scount2) + scount2
+            snode = r.randint(0, count2 - scount2) + scount2
             dist = XTree.NO_CONNECTION
             bestmatch = XTree.NO_MATCH
             for j in range(scount1,count1):
                 if treeOrder:
-                    d = distance(nodes1[j], nodes2[snode], False, threshold - distance)
+                    d = self.distance(nodes1[j], nodes2[snode], False, threshold - distance)
                 else:
-                    d = distance(nodes2[snode], nodes1[j], False, threshold - distance)
+                    d = self.distance(nodes2[snode], nodes1[j], False, threshold - distance)
                 if (d < dist):
                     dist = d
                     bestmatch = j
@@ -1468,14 +1470,14 @@ class XDiff:
             if (clen > 0):
                 # Modify matching.
                 i = 0
-                next = 0
+                next_circuit = 0
                 while (i < clen - 1):
-                    n1 = self._circuit[next]
-                    next = self._circuit[next+1]
+                    n1 = self._circuit[next_circuit]
+                    next_circuit = self._circuit[next_circuit+1]
                     # Node in node list 1.
                     if ((n1 > 0) and (n1 <= count1)):
                         nid1 = n1 - 1
-                        nid2 = self._circuit[next] - count1 - 1
+                        nid2 = self._circuit[next_circuit] - count1 - 1
                         if (nid2 == count2):
                             nid2 = XTree.DELETE
 
@@ -1597,7 +1599,7 @@ class XDiff:
                                 
                                 # Found!
                                 if ((i == j) and (less < 0)):
-                                    clen = 0; # the length of the circuit.
+                                    clen = 0 # the length of the circuit.
                                     
                                     # Locate the circuit.
                                     #circuit.addElement( Integer(i))
@@ -1621,11 +1623,11 @@ class XDiff:
                                         n = 0
                                         while (cit < clen - 1):
                                             left = self._circuit[n]
-                                            next = self._circuit[n + 1]
-                                            if next == -1:
+                                            next_circ = self._circuit[n + 1]
+                                            if next_circ == -1:
                                                 right = -1
                                             else:
-                                                right = self._circuit[next]
+                                                right = self._circuit[next_circ]
                                             
                                             #int middle = pathMatrix[circuit[n-1]][circuit[n]]
                                             middle = self._pathMatrix[left][right]
@@ -1633,13 +1635,13 @@ class XDiff:
                                             if (middle != left):
                                                 #circuit.insert( cit, middle )
                                                 self._circuit[clen * 2] = middle
-                                                self._circuit[clen * 2 + 1] = next
+                                                self._circuit[clen * 2 + 1] = next_circ
                                                 self._circuit[n + 1] = clen * 2
                                                 clen += 1
                                                 
                                                 finish = False
                                                 break
-                                            n = next
+                                            n = next_circ
                                             cit += 1
                                     
                                     return clen
@@ -1669,10 +1671,10 @@ class XDiff:
     # @param    input        the first/old xml document
     # @param    output        output file name
     # FIXME this is probably completely wrong ... IO is Java-specific!!!
-    def writeDiff(self, input, output):
+    def writeDiff(self, inp, output):
         try:
             out = codecs.open(output, self._encoding)
-            br =  open(input)
+            br =  open(inp)
 
             root1 = self._xtree1.getRoot()
             root2 = self._xtree2.getRoot()
@@ -1696,8 +1698,7 @@ class XDiff:
 
             out.close()
         except IOError as (errno, strerror):
-            print >>sys.stderr, strerror
-
+            print >>sys.stderr, "Exception: err no. %d\n%s" % (errno, strerror)
 
     # Write an element that has been deleted from the old document.
     # @param    out    output file writer
@@ -1926,39 +1927,37 @@ class XDiff:
         if (cdatalist == None):
             return text
 
-        buf =  StringBuffer()
+        buf =  ""
         count = cdatalist.size()
         lastEnd = 0
 
         for i in range(0,count,2):
-            cdataStart = int(self.cdatalist[i])
-            cdataEnd = int(self.cdatalist[i+1])
+            cdataStart = int(cdatalist[i])
+            cdataEnd = int(cdatalist[i+1])
 
             if (cdataStart > lastEnd):
-                buf.append(text.substring(lastEnd, cdataStart))
-            buf.append("<![CDATA[" +
-                   text.substring(cdataStart, cdataEnd) +
-                   "]]>")
+                buf += text[lastEnd:cdataStart]
+            buf += "<![CDATA[" + text[cdataStart:cdataEnd] + "]]>"
             lastEnd = cdataEnd
-        if (lastEnd < text.length()):
-            buf.append(text.substring(lastEnd))
+        if (lastEnd < len(text)):
+            buf += text[lastEnd:]
 
-        return buf.toString()
+        return str(buf)
 
-def readParameters(args, parameters):
+def readParameters(args, params):
     opid = 0
-    if (args.length < 3):
+    if (len(args) < 3):
         return False
     # we are not in the object, so how can we get to these values?
     # FIXME global module variables?
-    elif (args[0].equals("-o")):
+    elif (args[0] == "-o"):
         _oFlag = True
         opid += 1
-    elif (args[0].equals("-g")):
+    elif (args[0] == "-g"):
         _gFlag = True
         opid += 1
 
-    if (args[opid].equals("-p")):
+    if (args[opid] == "-p"):
         opid += 1
         p = 0
 #        try:
@@ -1972,18 +1971,18 @@ def readParameters(args, parameters):
             return False
         XDiff._NO_MATCH_THRESHOLD = p
 
-    if (args[opid].equals("-e")):
+    if (args[opid] == "-e"):
         opid += 1
         _encoding = args[opid]
         opid += 1
 
-    if ((args.length - opid) != 3):
+    if ((len(args) - opid) != 3):
         return False
-    parameters.add(args[opid])
+    params.append(args[opid])
     opid += 1
-    parameters.add(args[opid])
+    params.append(args[opid])
     opid += 1
-    parameters.add(args[opid])
+    params.append(args[opid])
 
     return True
 
@@ -1991,6 +1990,6 @@ if __name__ == "__main__":
     parameters =  []
     if (not readParameters(sys.argv, parameters)):
         print >>sys.stderr, __doc__
-        return
+        sys.exit(1)
 
     mydiff =  XDiff(parameters[0], parameters[1], parameters[2])
